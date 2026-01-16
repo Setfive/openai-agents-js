@@ -151,7 +151,8 @@ export function removeAudioFromContent(
     return {
       ...item,
       content: item.content.map((entry) => {
-        if ((entry as any).type === 'output_audio') {
+        const entryType = (entry as any).type;
+        if (entryType === 'output_audio' || entryType === 'audio') {
           return {
             ...entry,
             audio: null,
@@ -192,27 +193,43 @@ function preserveAssistantAudioTranscripts(
     return incoming;
   }
 
+  if (incoming.content.length === 0 && existing.content.length > 0) {
+    return {
+      ...incoming,
+      content: existing.content,
+    };
+  }
+
   const mergedContent = incoming.content.map((entry, index) => {
-    if (entry.type !== 'output_audio') {
+    const entryType = (entry as any).type;
+    if (entryType !== 'output_audio' && entryType !== 'audio') {
       return entry;
     }
 
+    const entryTranscript = (entry as any).transcript;
     const transcriptMissing =
-      typeof entry.transcript !== 'string' || entry.transcript.length === 0;
+      typeof entryTranscript !== 'string' || entryTranscript.length === 0;
     if (!transcriptMissing) {
       return entry;
     }
 
     const previousEntry = existing.content[index];
-    if (
-      previousEntry &&
-      previousEntry.type === 'output_audio' &&
-      typeof previousEntry.transcript === 'string' &&
-      previousEntry.transcript.length > 0
-    ) {
+    if (!previousEntry) {
+      return entry;
+    }
+
+    const previousType = (previousEntry as any).type;
+    const previousTranscript =
+      (previousType === 'output_audio' || previousType === 'audio') &&
+      typeof (previousEntry as any).transcript === 'string' &&
+      (previousEntry as any).transcript.length > 0
+        ? (previousEntry as any).transcript
+        : null;
+
+    if (previousTranscript) {
       return {
-        ...entry,
-        transcript: previousEntry.transcript,
+        ...(entry as any),
+        transcript: previousTranscript,
       };
     }
 

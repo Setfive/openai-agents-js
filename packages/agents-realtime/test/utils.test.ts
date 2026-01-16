@@ -195,6 +195,33 @@ describe('realtime utils', () => {
     }
   });
 
+  it('preserves assistant audio transcript when incoming content is empty', () => {
+    const transcript = 'voice transcript';
+    const history: RealtimeMessageItem[] = [
+      {
+        itemId: '4',
+        type: 'message',
+        role: 'assistant',
+        status: 'completed',
+        content: [{ type: 'audio', transcript }],
+      } as RealtimeMessageItem,
+    ];
+
+    const incoming: RealtimeMessageItem = {
+      itemId: '4',
+      type: 'message',
+      role: 'assistant',
+      status: 'in_progress',
+      content: [],
+    } as RealtimeMessageItem;
+
+    const updated = updateRealtimeHistory(history, incoming, false);
+    const updatedMessage = updated[0] as RealtimeMessageItem;
+    const content = updatedMessage.content[0] as any;
+    expect(content.transcript).toBe(transcript);
+    expect(updatedMessage.status).toBe('in_progress');
+  });
+
   it('prefers new transcript value when provided', () => {
     const history: RealtimeMessageItem[] = [
       {
@@ -234,11 +261,21 @@ describe('realtime utils', () => {
       status: 'completed',
       content: [{ type: 'output_audio', audio: 'out', transcript: 'bye' }],
     };
+    const assistantAudioItem: RealtimeMessageItem = {
+      itemId: 'a2',
+      type: 'message',
+      role: 'assistant',
+      status: 'completed',
+      content: [{ type: 'audio', audio: 'out', transcript: 'bye' }],
+    } as RealtimeMessageItem;
     expect(
       (removeAudioFromContent(userItem).content[0] as any).audio,
     ).toBeNull();
     expect(
       (removeAudioFromContent(assistantItem).content[0] as any).audio,
+    ).toBeNull();
+    expect(
+      (removeAudioFromContent(assistantAudioItem).content[0] as any).audio,
     ).toBeNull();
   });
 
